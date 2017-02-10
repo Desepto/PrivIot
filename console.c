@@ -1,0 +1,559 @@
+#include "projet.h"
+
+int main(int argc, char **argv)
+{
+	int continuer = 1;
+	while(continuer)
+	{// boucle infinie dont on sort si l'utilisateur écrit "exit"
+		char str[MAX]; // récupère ce qui est écrit par l'utilisateur
+		if(feof(stdin)) // gère le CTRL+D
+			exit(0);
+		fgets(str, MAX, stdin);
+
+		continuer = recupCommande(str);
+	}
+ 
+	return 0;
+}
+
+//////////////////////////////////////
+//			Partie 1				//
+//////////////////////////////////////
+
+int recupCommande(char* str)
+{//corps du programme
+	retireCarac(str, '\n'); // enleve le \n laissé par fgets
+	
+	char** mots;	// remplis dans un tableau à 2 dimensions les différents mots de la commande
+	char caracSep = ' ';
+	char* exit1 = "exit";
+	int tailleMotCommande = nbMots(str, caracSep); // compte le nombre de mots
+	
+	mots = calloc(MAX_NB, sizeof(char*)); // crée les sous tableaux
+	separe(str, mots, strlen(str), caracSep); // remplis les mots dans les sous tableaux
+	
+	
+	if(strcmp(exit1, mots[0]) == 0) //Si on a écrit exit => on quitte
+		return 0;
+	if(mots[0][0] == '\0')
+		return 1;
+		
+	int cmdPerso = 0, pidFils = 0, evite = 0; 
+	
+	if(mots[0][strlen(mots[0])-1] == '&')
+	{ // Si on a & à la fin du mot, on fork
+		pidFils = fork();
+		if(pidFils == 0) // si on est dans le proc fils on retire le dernier carac et on continue l'exec
+		{
+				retireCarac(mots[0], '&');
+				evite = 1;  // pour éviter de revider une deuxième fois la mémoire plus bas
+		}
+		else // Si on est dans le proc père on sort pour refaire un tour de boucle
+			return 1;
+	}
+	
+	cmdPerso = commandePerso(str, mots, tailleMotCommande);
+	
+	if(!cmdPerso)
+	{
+		// Récupère le path et le découpe en petits morceaux séparés par des ':' dans un tableau à 2 dim
+		caracSep = ':'; 
+		char* path = getenv("PATH");
+		tailleMotCommande = nbMots(path, caracSep);
+		
+		char** motsPath;
+		motsPath = calloc(tailleMotCommande, sizeof(char*));
+		separe(path, motsPath, strlen(path), caracSep);
+		
+		// On cherche si la commande existe (si son fichier existe) et si c'est le cas on l'execute
+		int i = 0;
+		char* adresse = calloc(MAX_NB, sizeof(char*));
+		
+		for(i = 0; i < tailleMotCommande; i++)
+		{
+			sprintf(adresse, "%s/%s", motsPath[i], mots[0]);
+			
+			if(open(adresse, O_RDONLY) != -1)
+			{// On fork pour le execv (qu'on puisse continuer le programme)
+				int* etat = NULL;
+				int pidFils = fork();
+	
+				if(pidFils == 0)
+				{
+					if(wildcard(str, mots))
+					{// Si il y a un wildcard dans l'un des mots
+						if((execv(adresse, mots)) == -1)
+							printf("ERREUR LORS DE LA SAISIE DE LA COMMANDE\n");
+					}
+					else
+						printf("ERREUR LORS DE L'UTILISATION D'UN WILDCARD (* OU ?) !\n");
+				}
+				else
+				{// processus père
+				
+					wait(etat);
+					return 1;
+				}
+				if(!evite)	//pour ne pas libérer la mémoire une deuxième fois
+						liberememoire(mots, MAX_NB, motsPath, tailleMotCommande, adresse);
+				return 1;
+			}
+		}
+	}
+	return 1;
+}
+
+int nbMots(char* str, char caracSep)
+{// Compte le nombre de mots séparés par le caracSep
+	int i = 0, cpt = 1;
+	int taille = strlen(str);
+
+	for(i = 0; i < taille; i++)
+		if(str[i] == caracSep)
+			cpt++;
+	return cpt;
+}
+
+void separe(char* str, char** mots, int nbLettres, char caracSep)
+{ // sépare la chaine de caractère en plusieurs mots
+	char carac = caracSep;
+	int taille = 0, nbMots = 0, cpt = 0;
+	
+	while( taille < nbLettres /*&& cpt < nbLettres*/)
+	{//tant qu'on est pas à la fin du string
+		if(str[taille] == carac)	
+		{// Si on tombe sur un caractère séparateur
+			mots[nbMots] = calloc(taille , sizeof(char)); // crée un nouveau mot dans le tableau
+			strncpy(mots[nbMots], str, taille);			// on y copie le mot trouvé
+			str = &str[taille + 1]; // reposition le début de la "tête" de lecture à la fin du mot ajouté
+			taille = 0;
+			nbMots++;
+			cpt++;
+		}
+		else
+		{
+			cpt++;
+			taille++;
+		}
+	} // Copie le dernier mot dans la liste des mots
+	mots[nbMots] = calloc(taille, sizeof(char));
+	strncpy(mots[nbMots], str, taille);
+	
+}
+
+void retireCarac(char* str, char carac)
+{//remplace la première occurence ce carac par un '\0'
+	int i = 0; // enleve le \n de la commande
+		for(i = 0; i < strlen(str); i++)
+			if(str[i] == carac)
+				str[i] = '\0';
+}
+
+//////////////////////////////////////
+// 			Partie 1 ( * et ? )		//
+//////////////////////////////////////
+
+int wildcard(char* str, char** mots)
+{//S'occupe de la prise en compte des wildcard
+	if( !strchr(str, '*') && !strchr(str, '?') ) // si il n'y a pas de * ou ? on sort tout de suite
+		return 1;
+		
+	glob_t gloub;
+	gloub.gl_pathc = 0;
+	gloub.gl_offs = 0;
+	gloub.gl_pathv = NULL;
+	
+	int i = 1, retourGlob;
+	int nb_mots = nbMots(str, ' ');
+
+	for(i = 1; i < nb_mots && nb_mots < MAX_NB; i++)
+	{// On teste pour chaque mot
+		if(strchr(mots[i], '*') || strchr(mots[i], '?'))// On teste si il ya un '*' ou un '?'
+		{
+			if((retourGlob = glob(mots[i], GLOB_NOSORT , NULL, &gloub)) != 0
+					|| gloub.gl_pathc + nb_mots >= MAX_NB) // si il n'y a rien de trouvé ou une erreur => problème
+				return 0;
+			else
+			{
+				int x;
+				if( i != nb_mots - 1)// si il y a des mots après lui on les décale pour garder la commande comme elle doit être
+					for(x = i; x < nb_mots; x++)
+						strcpy(mots[nb_mots + (x - i)], mots[x]);
+				
+				for(x = 0; x < gloub.gl_pathc ; x++) // on copie les mots correspondants à la suite dans notre suite de mots de la commande
+				{
+					mots[i + x] = calloc(strlen(gloub.gl_pathv[x]), sizeof(char)); // alloue la mémoire aux nouveaux tableaux
+					strcpy(mots[i + x], gloub.gl_pathv[x]); 
+				}
+				nb_mots += gloub.gl_pathc - 1; // on rajoute le nombre de mots ajoutés au nombre de mots déjà existants
+			}
+		}
+	}
+return 1;	
+}
+
+//////////////////////////////////////
+//			Partie 2				//
+//////////////////////////////////////
+
+int commandePerso(char* str, char** mots, int taille)
+{// Verifie si la commande est handmade
+
+	if(!strcmp("_echo", mots[0]))
+		echo(mots, taille);			
+	else if(!strcmp("_cat", mots[0]))
+		cat(mots[1]);
+	else if(!strcmp("_export", mots[0]))
+	{	
+		if(!export(mots))
+			printf("ERREUR DE SYNTAXE !\n");
+	}
+	else if(!strcmp("_cd", mots[0]))
+		cd(mots); 
+	else if(!strcmp("_ls", mots[0]))
+		ls(mots[1], taille);
+	else if(!strcmp("_cp", mots[0]))
+		cp(mots[1], mots[2]);
+	else
+		return 0;
+	return 1;
+
+}
+
+void echo(char** str, int taille)
+{//Réécrit ce qui est passé en argument + donne les valeurs des $VAR si il y en a
+	int i = 1, j = 0;
+	char c[MAX];
+	
+	while(i < taille)
+	{
+		if(str[i][0] == '$')
+		{
+			for(j=0; str[i][j] != '\0'; j++)
+				c[j] = str[i][j+1];	
+			printf("%s ", getenv(c));
+		}
+		else
+			printf("%s ", str[i]);
+		
+		i++;
+	}
+	printf("\n");
+}
+
+void cat(char* nomFichier)
+{// copie le contenu d'un fichier vers la sortie standard
+
+	FILE* fichier = NULL;
+	fichier = fopen(nomFichier, "r");
+	char text[MAX] = "";
+	if(fichier != NULL)
+	{
+		while(fgets(text, MAX, fichier) != NULL)
+			printf("%s\n", text);	
+		fclose(fichier);
+	}
+}
+
+int export(char** str)
+{// rentre une variable d'environnement et sa valeur
+	int i = 1, j = 0, test1 = 0, test2 = 0, temp = 0;
+	char var[MAX], val[MAX];
+	
+	if(str[i][strlen(str[i])-1] != '"')
+	{
+		return 0;
+	}
+	
+	while(str[i][j] != '\0'){
+		if(str[i][j] != '=' && !test1 && !test2 && str[i][j] != '"')
+		{//Si on a rencontré ni '"' ni '='
+			var[temp] = str[i][j];
+			temp++;
+		}
+		
+		else if(str[i][j] == '=' && !test1)
+		{//Si on rencontre un '=' pour la première fois
+			test1 = 1;
+			temp = 0;
+		}	
+
+		else if( test1 && str[i][j] == '"' && !test2) //Si on rencontre un '"' après un '='
+			test2 = 1;
+
+		else if(test1 && test2)
+		{//Si on est après un '=' et un '"'
+			if(str[i][j] != '"')
+			{//on remplit la valeur
+				val[temp] = str[i][j];
+				temp++;
+			}
+			else if(str[i][j] == '"')
+			{ // si on tombe sur un '"' on arrête
+				setenv(var, val, 1);
+				return 1;
+			}
+		}
+		j++;
+	}
+	
+	return 0;
+}
+
+void cd(char** str)
+{//Déplace dans l'arbo comme un cd normal
+	int i=0, cptr_s=0, j;
+    char* pwd = getenv("PWD");
+    char* pwd_b = "PWD=";
+    //crée les tableaux finaux et intermédiaires
+    char** tot;
+    char** pate;
+    tot = calloc(MAX_NB, sizeof(char*));
+    tot[1] = calloc(MAX, sizeof(char*));
+    tot[2] = calloc(MAX, sizeof(char*));
+    int nbSlash = nbMots(str[1], '/') ;
+    pate = calloc(nbSlash, sizeof(char*));
+    separe(str[1], pate, strlen(str[1]), '/');
+    int x=0;
+
+    for(j = 0; j < nbSlash; j++)
+    {//pour chaque mot entre '/'
+        if(!strcmp(pate[j], ".."))
+        {//si c'est pas un ".."
+            while(pwd[i] != '\0')
+            {//tant qu'on est pas à la fin du mot
+                if(pwd[i] == '/')
+                {//récupère la position du '/'
+                    cptr_s=i;
+                    x++;
+                }
+                i++;
+            }
+            if(x>1)
+            {//On remplace le '/' par un '/0'
+                pwd[cptr_s]='\0';
+                sprintf(tot[1], "%s%s",pwd_b,pwd); // supprime la fin du chemin
+            }
+            else
+            {// Si on a atteint la racince
+                printf("RACINE ATTEINTE\n");
+            }
+            x = 0;
+        }
+        else if(pate[0][0] == '.' || pate[0][0] == '/'  || pate[0][0] == '\0')
+            j = nbSlash; // si l'utilisateur met un '.' ou un '/' ou rien => on arrête tout
+        else
+        {//On rajoute dans le chemin ce qui est passé en argument
+            sprintf(tot[2], "%s/%s", pwd=getenv("PWD"), pate[j]);
+            if(open(tot[2], O_RDONLY) != -1) // on vérifie que ça existe
+                sprintf(tot[1], "%s%s",pwd_b,tot[2]);
+            else
+                j = nbSlash;
+        }   
+    i=0;
+    putenv(tot[1]); // on modifie notre PWD
+    printf("%s\n", getenv("PWD"));
+    }
+    
+
+}
+
+void ls(char* str, int taille)
+{//décrit le fichier ou les fichiers du dossier actuel si pas d'argument principalement fait en TD
+	struct stat stdbuf;
+	char *type;
+	int mask;
+	char prot[9], *p;
+	DIR* rep = NULL;
+    struct dirent* fichierLu = NULL;
+	
+	 if(taille > 1)
+	{// Si on a un argument
+		char* tot;
+		tot = calloc(MAX_NB, sizeof(char*));
+		sprintf(tot, "%s/%s", getenv("PWD"), str);
+		int fd = open(tot, O_RDONLY);
+		
+		if(fstat(fd, &stdbuf) != 0)
+		{//Si le fichier n'existe pas
+			printf("Le fichier spécifié n'existe pas\n");
+		}
+		else
+		{
+			switch(stdbuf.st_mode & S_IFMT)
+			{//trouve le mode du fichier
+				case S_IFDIR:
+				type="répertoire";
+				break;
+				
+				case S_IFREG:
+				type = "fichier";
+				break;
+				
+				case S_IFCHR:
+				type = "fichier spécial";
+				break;
+				
+				default:
+				type = "???";
+				break;
+			}
+			//Affiche les permission du fichier
+			strcpy(prot, "rwxrwxrwx");
+			p = prot;
+			mask = 0400;
+			while(mask != 0)
+			{
+				if((stdbuf.st_mode & mask) == 0)
+					*p = '-';
+				p++;
+				mask>>= 1;
+			}			
+			printf("%s \t %d \t %s \t %s\n", prot, (int) stdbuf.st_size,type , str );
+		}
+	}
+	else 
+	{//Si on a pas d'argument on rappelle la fonction sur tout ce qui est dans notre repertoire
+		rep = opendir(getenv("PWD"));
+		readdir(rep);
+		readdir(rep);
+		while((fichierLu = readdir(rep)) != NULL)
+				ls(fichierLu->d_name, 2);
+	}
+	
+}
+
+void cp(char* source, char* destination)
+{// copie toute une arbo à un autre emplacement, principalement fait en TD
+	if(type_fichier(source) == 0)
+	{
+		char newSource[512];
+		char newDest[512];
+		mkdir(destination, 0777);
+		DIR *dp;
+		dp = opendir(source);
+		
+		struct dirent *d;
+		
+		while((d = readdir(dp)) != NULL)
+		{	
+			if(d->d_name[0] != '.')
+			{
+				sprintf(newSource, "%s/%s", source, d->d_name);
+				sprintf(newDest, "%s/%s", destination, d->d_name);
+				cp(newSource , newDest);
+			}
+		}
+	}
+	else
+		copier(source, destination);
+		
+	printf("Fichier correctement copié\n");
+}
+
+int copier(char source[], char dest[])
+{ // Copie les fichiers sélectionés dans le repertoire déterminé (cp)
+	int fs, fd;
+	int n, x;
+	
+	for(x = 0; x < 2; x++)
+	{ // premier tour de boucle pour CREER les fichiers + repertoires, seconde tour pour REMPLIR les fichiers
+		
+		fs = open(source, O_RDONLY);
+		if( fs == -1)
+			return -1;
+		if(x == 0)
+			fd = open(dest, O_CREAT);
+		else
+			fd = open(dest, O_WRONLY);
+		
+		if(fd == -1)
+		{
+			close(fs);
+			return -1;
+		}
+		
+		struct stat stbuf;
+		stat(source, &stbuf);
+		int tmp = chmod(dest, stbuf.st_mode);
+		if(tmp != 0)
+		{
+			printf("Erreur de droits sur %s \n", dest);
+			perror("Erreur : ");
+		}
+		
+		n = copie(fs, fd);
+		close(fs);
+		close(fd);
+	}
+	
+	return n;
+}
+
+int copie(int fs, int fd)
+{ // copie le contenu d'un fichier dans un autre (cp)
+	char buf[MAX_NB];
+	int n;
+	while((n = read(fs, buf, MAX_NB)) > 0)
+	{
+		if(write(fd, buf, n) != n)
+			return -1;
+	}
+	return n;
+	
+}
+
+int type_fichier(char* source)
+{ // renvoi le type de fichier (cp)
+	struct stat stdbuf;
+	
+	if(stat(source, &stdbuf) != 0)
+	{
+		perror("cannot stat");
+		exit(1);
+	}
+	
+	switch(stdbuf.st_mode & S_IFMT)
+	{
+		case S_IFDIR:
+		return 0;
+		break;
+		
+		case S_IFREG:
+		return 1;
+		break;
+		
+		case S_IFCHR:
+		return 1;
+		break;
+		
+		default:
+		return 0;
+		break;
+	}
+
+}
+
+//////////////////////////////////////
+//		Libération de la mémoire	//
+//////////////////////////////////////
+
+void liberememoire(char** str1, int taille1, char** str2, int taille2, char* str3)
+{//libère la mémoire des tableaux dans récupCommande
+	freeTab(str1, taille1);
+	freeTab(str2, taille2);
+	free(str3);
+	str3 = NULL;
+}
+
+void freeTab(char** str, int taille)
+{//libère la mémoire d'un tableau à double dimension de char
+	int i;
+	for(i = 0; i < taille; i++)
+	{
+		free(str[i]);
+		str[i] = NULL;
+	}
+	free(str);
+	str = NULL;
+}
