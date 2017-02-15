@@ -10,7 +10,7 @@
 
 
 int main(int argc, char **argv){
-	
+	//contient la boucle du programme
 	int continuer = 1;
 	while(continuer)
 	{// boucle infinie dont on sort si l'utilisateur écrit "exit"
@@ -27,7 +27,7 @@ int main(int argc, char **argv){
 
 
 int recupCommande(char* str)
-{//corps du programme
+{//transforme ce qu'on reçoit en un tableau à 2 dim de mots
 	retireCarac(str, '\n'); // enleve le \n laissé par fgets
 	
 	char** mots;	// remplis dans un tableau à 2 dimensions les différents mots de la commande
@@ -97,8 +97,7 @@ void retireCarac(char* str, char carac)
 }
 
 int commandePerso(char* str, char** mots, int taille)
-{// Verifie si la commande est handmade
-
+{// Redigire vers bonnes fonctions
 	if(!strcmp("add", mots[0])){ // Commande d'ajout TS/meta
 		if(!strcmp("-ts", mots[1])) // Commande d'ajout TS
 			return addTs(str, mots, taille);
@@ -106,20 +105,48 @@ int commandePerso(char* str, char** mots, int taille)
 			return addMeta(str, mots, taille);
 	}
 	else if(!strcmp("help", mots[0])){
-		/*if(!strcmp("-ts", mots[1])) // Commande d'aide TS
+		if(!strcmp("-ts", mots[1])) // Commande d'aide TS
 			return helpTS(str, mots, taille);
-		else if(!strcmp("-meta", mots[1]))
-			return helpMeta(str, mots, taille);*/
+		else if(!strcmp("-meta", mots[1])) // Commande d'aide Meta
+			return helpMeta(str, mots, taille);
+	}
+	else if(!strcmp("show", mots[0])){
+		if(taille > 1 && !strcmp("-i", mots[1])) // Commande d'aide affichage d'un capteur particulier
+			return showMetaI(str, mots, taille);
+		else // Commande d'affichage de tous les capteurs
+			return showMeta(str, mots, taille);
 	}
 	return 0;
 
 }
 
+int helpTS(char* str, char** mots, int taille){
+	//Fonction d'affichage de l'aide des TS
+	if(taille == 2){
+		printf("Une TimeSeries est constituee de 3 attributs :\n *Son timestamp \n *L'id correspondant à son capteur (il doit faire partie de la liste des metadata) \n * Sa valeur (int) ");
+		printf("Il faut indiquer les differents elements dans l'ordre indique lors de l'ajout d'une timeseries.\n");
+		return 1;
+	}
+	return 0;
+}
+
+int helpMeta(char* str, char** mots, int taille){
+	// Fonctions de l'affichage de l'aide des metadatas
+	if(taille == 2 ){
+		printf("Une Metada est constituee de 6 attributs :\n *Son id (normalement defini par l'application) \n *Son nom (32 char max) \n *Son type de capteur (32 char max)\n"); 
+		printf(" *Le type des donnees mesurees (32 char max)\n *L'unite de mesure (32 char max)\n *La description du capteur (128 char max)\n ");
+		printf("Il faut indiquer les differents elements dans l'ordre indique lors de l'ajout d'une metadata.\n");
+		return 1;
+	}
+	return 0;
+}
+
 int addTs(char* str, char** mots, int taille){
+	//Fonciton d'ajout d'une TS
 	if(taille < 5)
 		printf("Nombre d'arguments insufisant pour ajouter une TS\n");
 	else if(taille > 5)
-		printf("Nombre d'arguements trop élevé pour ajouter une TS\n");
+		printf("Nombre d'arguements trop eleve pour ajouter une TS\n");
 	else{
 		printf("Ajout de la time series\n");
 		FILE* fichierTs = NULL;
@@ -135,7 +162,9 @@ int addTs(char* str, char** mots, int taille){
 	return 0;
 }
 
+// Il faudrait faire en sorte que l'id soit donné automatiquement et non pas choisi (fichier avec un lastID)
 int addMeta(char* str, char** mots, int taille){
+	//Fonction d'ajout d'une metadata
 	if(taille < 8)
 		printf("Nombre d'arguments insufisant pour ajouter une metadata\n");
 	else if (taille > 8)
@@ -155,35 +184,25 @@ int addMeta(char* str, char** mots, int taille){
 	return 0;
 }
 
-
-/*
-int main(int argc, char **argv)
-{
-	printf("hello world\n");
-	NAND_FTL_free();
+int showMeta(char* str, char** mots, int taille){
+	char* text;
+	text = calloc(MAX, sizeof(char));
+	
+	FILE* fMeta = NULL;
+	fMeta = fopen("Metadata.txt", "r");
+	
+	if(fMeta != NULL){
+		while(fgets(text, MAX, fMeta) != NULL)
+			printf(text);
+		fclose(fMeta);
+		free(text);
+		return 1;
+	}
+	else
+		printf("Aucune metada enregistrée");
 	return 0;
 }
 
-void NAND_FTL_free( void ){
-	
-	int i = 0, j =0;
-	FILE* fichier = NULL;
-	
-	for(i = 0; i < NB_BLOCK; i++){
-		char buf[64] = "";
-		sprintf(buf, "%d", i);
-		fichier = fopen(buf, "w+");
-		
-		for(j = 0; j < NB_PAGES; j++){
-			fputs("0000\n0000\n0000\n0000\n", fichier);
-		}
-		fclose(fichier);
-	}
+int showMetaI(char* str, char** mots, int taille, int indice){
+	return 0;
 }
-
-*/
-/*
- char str[10] = "";
-    int nombre = 12345;
-    sprintf(str, "%d", nombre);
-    printf("%d", nombre);*/

@@ -11,8 +11,8 @@
 
 
 
-#define MAX 1024
-#define MAX_NB 50
+#define MAX 1024 // utilisée pour les tailles de chaines
+#define MAX_NB 16
 
 //int compteLettre(char* tab, char lettre);
 //void decompose(char* cmd, char** splited, int taille, char sep);
@@ -47,7 +47,7 @@ typedef struct ts TS;
 struct metadata{
 	int id;
 	char* nom;
-	int typeCapteur;
+	char* typeCapteur;
 	char* typeDonnees;
 	char* unite;
 	char* description
