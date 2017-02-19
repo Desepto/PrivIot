@@ -31,9 +31,18 @@ int commandePerso(char* str, char** mots, int taille);
 //void cp(char* source, char* destination);
 //int type_fichier(char* source);
 void retireCarac(char* str, char carac);
-//void liberememoire(char** str1, int taille1, char** str2, int taille2, char* str3);
-//void freeTab(char** str, int taille);
+//void liberememoire(char** str1, int taille1, char** str2, int taille2);
+void freeTab(char** str, int taille);
 //void ls(char* str, int taille);*/
+
+int helpTS(char* str, char** mots, int taille);
+int helpMeta(char* str, char** mots, int taille);
+int addTs(char* str, char** mots, int taille);
+int addMeta(char* str, char** mots, int taille);
+int showMeta(char* str, char** mots, int taille);
+int showMetaI(char* str, char** mots, int taille);
+int get(char* str, char** mots, int taille);
+int stringToInt(char* str);
 
 // ****** STRUCTURES DE DONNEES ***** //
 

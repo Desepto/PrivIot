@@ -39,12 +39,18 @@ int recupCommande(char* str)
 	separe(str, mots, strlen(str), caracSep); // remplis les mots dans les sous tableaux
 	
 	
-	if(strcmp(exit1, mots[0]) == 0) //Si on a écrit exit => on quitte
+	if(strcmp(exit1, mots[0]) == 0){ //Si on a écrit exit => on quitte
+		freeTab(mots, MAX_NB);
 		return 0;
-	if(mots[0][0] == '\0')
+	}
+	if(mots[0][0] == '\0'){
+		freeTab(mots, MAX_NB);
 		return 1;
-		
+	}
+	
 	int cmdPerso = commandePerso(str, mots, tailleMotCommande);
+	freeTab(mots, MAX_NB);
+	return 1;
 		
 }
 
@@ -103,18 +109,27 @@ int commandePerso(char* str, char** mots, int taille)
 			return addTs(str, mots, taille);
 		else if(!strcmp("-meta", mots[1])) // Commande d'ajout meta
 			return addMeta(str, mots, taille);
+		else
+			printf("Pas assez d'arguments");
 	}
 	else if(!strcmp("help", mots[0])){
 		if(!strcmp("-ts", mots[1])) // Commande d'aide TS
 			return helpTS(str, mots, taille);
 		else if(!strcmp("-meta", mots[1])) // Commande d'aide Meta
 			return helpMeta(str, mots, taille);
+		else
+			printf("Pas assez d'arguments");
 	}
 	else if(!strcmp("show", mots[0])){
 		if(taille > 1 && !strcmp("-i", mots[1])) // Commande d'aide affichage d'un capteur particulier
 			return showMetaI(str, mots, taille);
-		else // Commande d'affichage de tous les capteurs
+		else if(taille > 1 && !strcmp("-meta", mots[1])) // Commande d'affichage de tous les capteurs
 			return showMeta(str, mots, taille);
+		else
+			printf("Pas assez d'arguments\n");
+	}
+	else if(!strcmp("get", mots[0])){
+		return get(str, mots, taille);
 	}
 	return 0;
 
@@ -174,7 +189,7 @@ int addMeta(char* str, char** mots, int taille){
 		FILE* fichierMeta = NULL;
 		fichierMeta = fopen("Metadata.txt", "a+");
 		if (fichierMeta != NULL){
-			fprintf(fichierMeta, "%s %s %s %s %s %s\n", mots[2], mots[3], mots[4], mots[5], mots[6], mots[7]);
+			fprintf(fichierMeta, "%s| %s |%s |%s |%s |%s\n", mots[2], mots[3], mots[4], mots[5], mots[6], mots[7]); // petit tweak pour avoir un bon affichage
 			fclose(fichierMeta);
 			return 1;
 		}
@@ -184,18 +199,29 @@ int addMeta(char* str, char** mots, int taille){
 	return 0;
 }
 
-int showMeta(char* str, char** mots, int taille){
-	char* text;
-	text = calloc(MAX, sizeof(char));
+int showMeta(char* str, char** mots, int taille){	
+	
+	if(taille > 2){
+		printf("Trop d'arguments indiqués\n");
+		return 0;
+	}
+	
+	char text[MAX];
+	const char s[2] = "|";
+	char* token;
 	
 	FILE* fMeta = NULL;
 	fMeta = fopen("Metadata.txt", "r");
 	
 	if(fMeta != NULL){
-		while(fgets(text, MAX, fMeta) != NULL)
-			printf(text);
+		while(fgets(text, MAX, fMeta) != NULL){
+			token = strtok(text, s);
+			while(token != NULL){ // retire les "|" du fichier de save
+				printf("%s", token);
+				token = strtok(NULL, s);
+			}
+		}
 		fclose(fMeta);
-		free(text);
 		return 1;
 	}
 	else
@@ -203,6 +229,145 @@ int showMeta(char* str, char** mots, int taille){
 	return 0;
 }
 
-int showMetaI(char* str, char** mots, int taille, int indice){
+
+int showMetaI(char* str, char** mots, int taille){
+	
+	if(taille > 2){
+		printf("Trop d'arguments indiqués\n");
+		return 0;
+	}
+	
+	char text[MAX];
+	const char s[2] = "|"; // def séparateur
+	char* token; // def les sous-chaines
+	int indice = stringToInt(mots[taille - 1]); // indice voulu
+	
+	FILE* fMeta = NULL;
+	fMeta = fopen("Metadata.txt", "r");
+	if(fMeta != NULL){
+		while(fgets(text, MAX, fMeta) != NULL){
+			token = strtok(text, s); // découpe la chaine en morceaux
+			int indiceActuel = stringToInt(token);
+			
+			if(indice == indiceActuel){ //vérif de l'indice
+				while(token != NULL){ // retire les "|" du fichier de save
+					printf("%s", token);
+					token = strtok(NULL, s);
+				}
+			}
+		}
+		fclose(fMeta);
+		return 1;
+	}
+	else
+		printf("Aucune metada enregistrée");
 	return 0;
+	
+}
+
+int get(char* str, char** mots, int taille){
+	
+	//On récupère les différents éléments de la commande
+	int x = stringToInt(mots[1]);
+	int y = stringToInt(mots[2]);
+	int z = stringToInt(mots[3]);
+	int tailleCommande = x + y + z;
+	int position = 4;
+	int type, val1, val2, date1, date2;
+	
+	char text[MAX];
+	const char s[2] = " "; // def séparateur
+	char* token; // def les sous-chaines
+	
+	//Vérification de la taille de la commande
+	if(y == 3)
+		tailleCommande--;
+	if(z == 3)
+		tailleCommande--;
+	if(tailleCommande < taille){
+		printf("Trop d'arguments\n");
+		return 0;
+	}
+	else if(tailleCommande > taille){
+		printf("Pas assez d'arguments\n");
+		return 0;
+	}
+	
+	if(x == 1){
+		type = mots[position];
+		position++;
+	}
+	
+	if(y > 1){
+		val1 = mots[position];
+		position++;
+		if(y > 2){
+			val2 = mots[position];
+			position++;
+		}
+	}
+	if(z > 1){
+		date1 = mots[position];
+		position++;
+		if(z > 2){
+			date2 = mots[position];
+			position++;
+		}
+	}
+	
+	
+	
+	FILE* fTs = NULL;
+	fMeta = fopen("TimeSeries.txt", "r");
+	if(fTs != NULL){
+		while(fgets(text, MAX, fTs) != NULL){
+			
+			/*
+			 *Récupérer les 3 valeurs puis faire les comparaisons et renvoyer si c'est bon.
+			 */
+			token = strtok(text, s); // découpe la chaine en morceaux
+			
+			if(indice == indiceActuel){ //vérif de l'indice
+				while(token != NULL){ // retire les "|" du fichier de save
+					printf("%s", token);
+					token = strtok(NULL, s);
+				}
+			}
+		}
+		fclose(fMeta);
+		return 1;
+	}
+	else
+		printf("Aucune metada enregistrée");
+	return 0;
+	
+	
+	
+	return 0;
+}
+
+int stringToInt(char* str){
+	
+	int i = 0, r = 0, p = 1;
+	//i = indice pour parcourir la chaine
+	// p = variable utilisée pour faire *1/*10/*100.../*x
+	while(str[i] != '\0'){
+		r += (str[i] - '0') * p;
+		i++;
+		p *= 10;
+	}
+	return r;
+	
+}
+
+void freeTab(char** str, int taille)
+{//libère la mémoire d'un tableau à double dimension de char
+	int i;
+	for(i = 0; i < taille; i++)
+	{
+		free(str[i]);
+		str[i] = NULL;
+	}
+	free(str);
+	str = NULL;
 }
