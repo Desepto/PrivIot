@@ -268,12 +268,13 @@ int showMetaI(char* str, char** mots, int taille){
 int get(char* str, char** mots, int taille){
 	
 	//On récupère les différents éléments de la commande
-	int x = stringToInt(mots[1]);
-	int y = stringToInt(mots[2]);
-	int z = stringToInt(mots[3]);
+	int x = stringToInt(mots[1]); // type 0-1 (idMeta)
+	int y = stringToInt(mots[2]); // valeur 0-3
+	int z = stringToInt(mots[3]); // date 0-3
 	int tailleCommande = x + y + z;
 	int position = 4;
-	int type, val1, val2, date1, date2;
+	int type = 0, val1 = 0, val2 = 0, date1 = 0, date2 = 0;
+	int timestamp = 0, idMeta = 0, valeur = 0;
 	
 	char text[MAX];
 	const char s[2] = " "; // def séparateur
@@ -325,14 +326,14 @@ int get(char* str, char** mots, int taille){
 			/*
 			 *Récupérer les 3 valeurs puis faire les comparaisons et renvoyer si c'est bon.
 			 */
-			token = strtok(text, s); // découpe la chaine en morceaux
+			timestamp = stringToInt(strtok(text, s)); // découpe la chaine en morceaux
+			idMeta = stringToInt(strtok(NULL, s));
+			valeur = stringToInt(strtok(NULL, s));
 			
-			if(indice == indiceActuel){ //vérif de l'indice
-				while(token != NULL){ // retire les "|" du fichier de save
-					printf("%s", token);
-					token = strtok(NULL, s);
-				}
+			if(idMetaIsOk(x, type, idMeta) && valueIsOk(y, val1, val2, valeur) && timeIsOk(z, date1, date2, timestamp)){
+				printf("%d %d %d\n", timestamp, idMeta, valeur);
 			}
+			
 		}
 		fclose(fMeta);
 		return 1;
@@ -345,6 +346,42 @@ int get(char* str, char** mots, int taille){
 	
 	return 0;
 }
+
+bool idMetaIsOk(int x, int type, int idMeta){
+	
+	if(x == 0 || type == idMeta)
+		return true;
+	return false;
+}
+
+bool valueIsOk(int y, int val1, int val2, int valeur){
+	
+	if(y == 0)
+		return true;
+	if(y == 1 && valeur = val1)
+		return true;
+	if(y == 2 && valeur >= val1 && valeur <= val2) // si val1 <= valeur <= val2
+		return true;
+	if(y == 3 && valeur <= val1 || valeur >= val2) // si valeur n'est pas entre val1 et val2
+		return true;
+	return false;
+
+}
+
+bool timeIsOk(int z, int date1, int date2, int timestamp){
+	
+	if(z == 0)
+		return true;
+	if(z == 1 && timestamp = date1)
+		return true;
+	if(z == 2 && timestamp >= date1 && timestamp <= date2) 
+		return true;
+	if(z == 3 && timestamp <= date1 || timestamp >= date2) 
+		return true;
+	return false;
+}
+
+/* ATTENTION NE GERE PAS LES NOMBRES NEGATIFS !*/
 
 int stringToInt(char* str){
 	

@@ -43,6 +43,9 @@ int showMeta(char* str, char** mots, int taille);
 int showMetaI(char* str, char** mots, int taille);
 int get(char* str, char** mots, int taille);
 int stringToInt(char* str);
+bool timeIsOk(int z, int date1, int date2, int timestamp);
+bool valueIsOk(int y, int val1, int val2, int valeur);
+bool idMetaIsOk(int x, int type, int idMeta);
 
 // ****** STRUCTURES DE DONNEES ***** //
 
