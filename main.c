@@ -11,6 +11,25 @@
 
 int main(int argc, char **argv){
 	//contient la boucle du programme
+
+	
+	//Morceau de code qui permet de lire à partir d'une certaine ligne !
+	char text[MAX];
+	FILE* f = NULL;
+	f = fopen("TimeSeries.txt", "r");
+	int tailleLigne = ((sizeof(int) * 3) + (sizeof(char)));
+	
+	if (f != NULL){
+		fseek(f, tailleLigne, SEEK_SET);
+		while(fgets(text, MAX, f) != NULL){
+			
+			printf("%s", text);
+		}
+		fclose(f);
+		
+	}
+	
+	/*
 	int continuer = 1;
 	while(continuer)
 	{// boucle infinie dont on sort si l'utilisateur écrit "exit"
@@ -20,14 +39,14 @@ int main(int argc, char **argv){
 			exit(0);
 		continuer = recupCommande(str);
 	}
- 
+ */
 	return 0;
 	
 }
 
 
 int recupCommande(char* str)
-{//transforme ce qu'on reçoit en un tableau à 2 dim de mots
+{//Génère le tableau de mots
 	retireCarac(str, '\n'); // enleve le \n laissé par fgets
 	
 	char** mots;	// remplis dans un tableau à 2 dimensions les différents mots de la commande
@@ -43,13 +62,15 @@ int recupCommande(char* str)
 		freeTab(mots, MAX_NB);
 		return 0;
 	}
-	if(mots[0][0] == '\0'){
+	
+	if(mots[0][0] == '\0'){ // Si on a juste appuyé sur entrée on continue
 		freeTab(mots, MAX_NB);
 		return 1;
 	}
 	
 	int cmdPerso = commandePerso(str, mots, tailleMotCommande);
 	freeTab(mots, MAX_NB);
+	
 	return 1;
 		
 }
@@ -68,7 +89,7 @@ int nbMots(char* str, char caracSep)
 }
 
 void separe(char* str, char** mots, int nbLettres, char caracSep)
-{ // sépare la chaine de caractère en plusieurs mots
+{ // sépare la chaine de caractère en plusieurs mots / On pourrait juste utiliser strtok
 	char carac = caracSep;
 	int taille = 0, nbMots = 0, cpt = 0;
 	
@@ -117,6 +138,8 @@ int commandePerso(char* str, char** mots, int taille)
 			return helpTS(str, mots, taille);
 		else if(!strcmp("-meta", mots[1])) // Commande d'aide Meta
 			return helpMeta(str, mots, taille);
+		else if(!strcmp("-get", mots[1])) // Commande d'aide Meta
+			return helpGet(str, mots, taille);
 		else
 			printf("Pas assez d'arguments");
 	}
@@ -133,6 +156,21 @@ int commandePerso(char* str, char** mots, int taille)
 	}
 	return 0;
 
+}
+
+int help(char* str, char** mots, int taille){
+	
+	printf("Liste des commandes :\n");
+	printf("*add -ts [time] [Id metadata] [valeur] - Ajoute une timeseries\n");
+	printf("*add -meta [id] [nom] [typeCapteur]	[typeDonnees] [unite] [description] - Ajoute une metadata\n");
+	printf("*help -ts - Affiche l'aide sur les timeseries\n");
+	printf("*help -get - Affiche l'aide sur la commande get\n");
+	printf("*help -meta - Affiche l'aide sur les metadata\n");
+	printf("*show -meta - Affiche l'ensemble des infos sur les metadatas\n");
+	printf("*show -[i] - affiche les infos d'un capteur\n");
+	printf("*get [x] [y] [z] [type] [valeur1] [valeur2] [date1] [date2] - Renvoi les timeseries correspondant aux arguments, voir help -get pour plus d'infos\n");
+	
+	return 1;
 }
 
 int helpTS(char* str, char** mots, int taille){
@@ -154,6 +192,14 @@ int helpMeta(char* str, char** mots, int taille){
 		return 1;
 	}
 	return 0;
+}
+int helpGet(char* str, char** mots, int taille){
+	
+	printf("si x = 0, pas de type renseigné \nsi x = 1, prise en compte du type \nsi y = 0, pas de valeurs \nsi y = 1, vérification de l’égalité avec la valeur \n");
+	printf("si y = 2, vérification de l’appartenance à l’intervalle des deux valeurs \nsi y = 3, vérification de la non appartenance à l’intervalle des deux valeurs \n");
+	printf("si z = 0, pas de date renseignée \nsi z = 1, vérification de l’égalité avec le temps \nsi z = 2, vérification de l’appartenance à l’intervalle des deux temps \n");
+	printf("si z = 3, vérification de la non appartenance à l’intervalle des deux temps");
+	
 }
 
 int addTs(char* str, char** mots, int taille){
@@ -199,7 +245,8 @@ int addMeta(char* str, char** mots, int taille){
 	return 0;
 }
 
-int showMeta(char* str, char** mots, int taille){	
+int showMeta(char* str, char** mots, int taille){
+	//Affiche les différentes metadata présentes dans l'application
 	
 	if(taille > 2){
 		printf("Trop d'arguments indiqués\n");
@@ -231,6 +278,7 @@ int showMeta(char* str, char** mots, int taille){
 
 
 int showMetaI(char* str, char** mots, int taille){
+	//Affiche une metadata en particulier
 	
 	if(taille > 2){
 		printf("Trop d'arguments indiqués\n");
@@ -294,6 +342,7 @@ int get(char* str, char** mots, int taille){
 		return 0;
 	}
 	
+	//On récupère les différents élements de la commande
 	if(x == 1){
 		type = mots[position];
 		position++;
@@ -319,7 +368,7 @@ int get(char* str, char** mots, int taille){
 	
 	
 	FILE* fTs = NULL;
-	fMeta = fopen("TimeSeries.txt", "r");
+	fTs = fopen("TimeSeries.txt", "r");
 	if(fTs != NULL){
 		while(fgets(text, MAX, fTs) != NULL){
 			
@@ -335,7 +384,7 @@ int get(char* str, char** mots, int taille){
 			}
 			
 		}
-		fclose(fMeta);
+		fclose(fTs);
 		return 1;
 	}
 	else
@@ -347,52 +396,59 @@ int get(char* str, char** mots, int taille){
 	return 0;
 }
 
-bool idMetaIsOk(int x, int type, int idMeta){
-	
+int idMetaIsOk(int x, int type, int idMeta){
+	//Si la metadata est demandée et qu'elle correspond
 	if(x == 0 || type == idMeta)
-		return true;
-	return false;
+		return 1;
+	return 0;
 }
 
-bool valueIsOk(int y, int val1, int val2, int valeur){
-	
+int valueIsOk(int y, int val1, int val2, int valeur){
+	//Si la valeur est demandée et qu'elle correspond à ce qui est voulu
 	if(y == 0)
-		return true;
-	if(y == 1 && valeur = val1)
-		return true;
+		return 1;
+	if(y == 1 && valeur == val1)
+		return 1;
 	if(y == 2 && valeur >= val1 && valeur <= val2) // si val1 <= valeur <= val2
-		return true;
+		return 1;
 	if(y == 3 && valeur <= val1 || valeur >= val2) // si valeur n'est pas entre val1 et val2
-		return true;
-	return false;
+		return 1;
+	return 0;
 
 }
 
-bool timeIsOk(int z, int date1, int date2, int timestamp){
-	
+int timeIsOk(int z, int date1, int date2, int timestamp){
+	//Si le temps est demandée et qu'il correspond à ce qui est voulu
 	if(z == 0)
-		return true;
-	if(z == 1 && timestamp = date1)
-		return true;
+		return 1;
+	if(z == 1 && timestamp == date1)
+		return 1;
 	if(z == 2 && timestamp >= date1 && timestamp <= date2) 
-		return true;
+		return 1;
 	if(z == 3 && timestamp <= date1 || timestamp >= date2) 
-		return true;
-	return false;
+		return 1;
+	return 0;
 }
 
-/* ATTENTION NE GERE PAS LES NOMBRES NEGATIFS !*/
 
 int stringToInt(char* str){
-	
+	//Transforme un char* en int
 	int i = 0, r = 0, p = 1;
+	int neg = 0;
 	//i = indice pour parcourir la chaine
 	// p = variable utilisée pour faire *1/*10/*100.../*x
-	while(str[i] != '\0'){
+	// neg variable utilisée pour voir si c'est un nombre négatif
+	
+	if(str[0] == '-')
+		neg++;
+		
+	for(i = strlen(str)-1; i >= neg; i--){
 		r += (str[i] - '0') * p;
-		i++;
 		p *= 10;
 	}
+	
+	if(str[0] == '-')
+		return -r;
 	return r;
 	
 }

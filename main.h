@@ -37,15 +37,16 @@ void freeTab(char** str, int taille);
 
 int helpTS(char* str, char** mots, int taille);
 int helpMeta(char* str, char** mots, int taille);
+int helpGet(char* str, char** mots, int taille);
 int addTs(char* str, char** mots, int taille);
 int addMeta(char* str, char** mots, int taille);
 int showMeta(char* str, char** mots, int taille);
 int showMetaI(char* str, char** mots, int taille);
 int get(char* str, char** mots, int taille);
 int stringToInt(char* str);
-bool timeIsOk(int z, int date1, int date2, int timestamp);
-bool valueIsOk(int y, int val1, int val2, int valeur);
-bool idMetaIsOk(int x, int type, int idMeta);
+int timeIsOk(int z, int date1, int date2, int timestamp);
+int valueIsOk(int y, int val1, int val2, int valeur);
+int idMetaIsOk(int x, int type, int idMeta);
 
 // ****** STRUCTURES DE DONNEES ***** //
 
